@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Datasheet Parser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(148, 163, 184, 0.1);
+            --primary: #38bdf8;
+            --text-main: #f8fafc;
+            --text-secondary: #94a3b8;
+            --success: #4ade80;
+            --error: #f87171;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.1) 0px, transparent 50%);
+            color: var(--text-main);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-weight: 600;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Upload Zone */
+        .upload-zone {
+            background: var(--card-bg);
+            border: 2px dashed var(--card-border);
+            border-radius: 1rem;
+            padding: 4rem 2rem;
+            text-align: center;
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--primary);
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            transition: color 0.3s ease;
+        }
+
+        .upload-zone:hover .upload-icon {
+            color: var(--primary);
+        }
+
+        .upload-text {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-subtext {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Loading State */
+        .loader {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--card-border);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            width: 100%;
+            max-width: 400px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            margin: 1.5rem auto 1rem;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary), #818cf8);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* Results Area */
+        .results-container {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .results-container.visible {
+            opacity: 1;
+            transform: translateY(0);
+            display: grid;
+        }
+
+        .result-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            display: flex;
+            flex-direction: column;
+            max-height: 80vh;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 1rem;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--primary);
+        }
+
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            color: #e2e8f0;
+        }
+
+        /* Markdown Styling inside content area */
+        .content-area h2 {
+            font-size: 1.1rem;
+            color: var(--primary);
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 0.3rem;
+        }
+
+        .content-area h2:first-child {
+            margin-top: 0;
+        }
+
+        .content-area strong {
+            color: #fff;
+        }
+
+        .content-area ul {
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .content-area li {
+            margin-bottom: 0.4rem;
+        }
+
+        .content-area p {
+            margin-bottom: 1rem;
+        }
+
+
+        /* JSON Syntax Highlighting */
+        .json-key {
+            color: #f87171;
+        }
+
+        /* Red-ish for keys */
+        .json-string {
+            color: #4ade80;
+        }
+
+        /* Green for strings */
+        .json-number {
+            color: #60a5fa;
+        }
+
+        /* Blue for numbers */
+        .json-boolean {
+            color: #c084fc;
+        }
+
+        /* Purple for booleans */
+        .json-null {
+            color: #94a3b8;
+        }
+
+        /* Gray for null */
+
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--card-border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .results-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Solar Datasheet Parser</h1>
+        <div class="subtitle">Extract technical specs instantly</div>
+    </header>
+
+    <div class="container">
+
+        <div class="upload-zone" id="dropZone">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text">Drag & Drop PDF here</div>
+            <div class="upload-subtext">or click to browse</div>
+            <input type="file" id="fileInput" accept="application/pdf">
+
+            <div id="fileInfo" style="display:none; margin-top: 1rem; color: var(--primary); font-weight: 500;"></div>
+
+            <div class="progress-container" id="progressContainer">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <div id="loaderText" style="display:none;">
+                <p style="margin-top: 1rem; color: var(--text-secondary);">Analyzing Datasheet...</p>
+                <p style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.85rem;">Processing usually
+                    takes ~10-20 seconds</p>
+            </div>
+        </div>
+
+        <div class="results-container" id="resultsContainer">
+
+            <!-- Summary Column -->
+            <div class="result-card">
+                <div class="card-header">
+                    <div class="card-title">Summary</div>
+                    <button class="copy-btn" onclick="copyToClipboard('summaryContent')">Copy</button>
+                </div>
+                <div class="content-area" id="summaryContent"></div>
+            </div>
+
+            <!-- JSON Column -->
+            <div class="result-card">
+                <div class="card-header">
+                    <div class="card-title">Raw JSON Data</div>
+                    <button class="copy-btn" onclick="copyToClipboard('jsonContent')">Copy JSON</button>
+                </div>
+                <div class="content-area" id="jsonContent"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const loaderText = document.getElementById('loaderText');
+
+        const resultsContainer = document.getElementById('resultsContainer');
+        const summaryContent = document.getElementById('summaryContent');
+        const jsonContent = document.getElementById('jsonContent');
+
+        let progressInterval;
+
+        // Drag & Drop Handlers
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type === 'application/pdf') {
+                    uploadFile(file);
+                } else {
+                    alert('Please upload a PDF file.');
+                }
+            }
+        }
+
+        async function uploadFile(file) {
+            // UI Reset
+            dropZone.style.pointerEvents = 'none';
+            dropZone.style.opacity = '0.6';
+            document.querySelector('.upload-icon').style.display = 'none';
+            document.querySelector('.upload-text').style.display = 'none';
+            document.querySelector('.upload-subtext').style.display = 'none';
+            resultsContainer.classList.remove('visible');
+
+            const fileInfo = document.getElementById('fileInfo');
+            fileInfo.style.display = 'block';
+            fileInfo.textContent = `Selected: ${file.name}`;
+
+            // Start Progress Animation
+            progressContainer.style.display = 'block';
+            loaderText.style.display = 'block';
+            progressBar.style.width = '0%';
+
+            // Simulate progress to 90% over 15 seconds
+            let width = 0;
+            clearInterval(progressInterval);
+            progressInterval = setInterval(() => {
+                if (width >= 90) {
+                    clearInterval(progressInterval);
+                } else {
+                    width += 1; // Increment
+                    progressBar.style.width = width + '%';
+                }
+            }, 150); // 150ms * 90 steps ≈ 13.5 seconds
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                // Complete Progress
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+
+                if (result.success) {
+                    // Small delay to let user see 100%
+                    setTimeout(() => {
+                        displayResults(result);
+                    }, 500);
+
+                } else {
+                    alert('Error: ' + result.error);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during upload.');
+            } finally {
+                // Let's just reset the "Upload another" text after delay
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    loaderText.style.display = 'none';
+
+                    dropZone.style.pointerEvents = 'auto';
+                    dropZone.style.opacity = '1';
+                    document.querySelector('.upload-icon').style.display = 'block';
+                    document.querySelector('.upload-text').style.display = 'block';
+                    document.querySelector('.upload-text').textContent = "Upload another file";
+                    document.querySelector('.upload-subtext').style.display = 'block';
+                }, 1000);
+            }
+        }
+
+        function displayResults(data) {
+            // Format JSON with Syntax Highlighting
+            const jsonText = JSON.stringify(data.data, null, 2);
+            jsonContent.innerHTML = syntaxHighlight(jsonText);
+
+            // Render Markdown Summary using marked.js
+            summaryContent.innerHTML = marked.parse(data.summary.trim());
+
+            resultsContainer.classList.add('visible');
+        }
+
+        function syntaxHighlight(json) {
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        async function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            try {
+                await navigator.clipboard.writeText(text);
+                const btn = document.querySelector(`button[onclick="copyToClipboard('${elementId}')"]`);
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = originalText, 2000);
+            } catch (err) {
+                console.error('Failed to copy!', err);
+            }
+        }
+    </script>
+</body>
+
+</html>
