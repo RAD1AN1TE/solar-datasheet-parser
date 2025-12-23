@@ -3,6 +3,9 @@
 A powerful AI-driven tool that extracts technical specifications from Solar Module datasheets (PDF).
 Powered by **AWS Bedrock (Claude 3.5 Sonnet)** and wrapped in a modern web interface.
 
+**[Live Demo](https://solar-datasheet-parser.onrender.com)**
+
+
 ## Features
 - **Accurate Extraction**: Parses electrical, mechanical, and warranty data into structured JSON.
 - **Smart Summary**: Generates a human-readable summary of key specs.
